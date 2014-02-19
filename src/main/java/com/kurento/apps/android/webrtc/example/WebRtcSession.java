@@ -17,11 +17,11 @@ import org.webrtc.PeerConnection.IceConnectionState;
 import org.webrtc.PeerConnection.IceGatheringState;
 import org.webrtc.PeerConnection.SignalingState;
 import org.webrtc.PeerConnectionFactory;
-import org.webrtc.VideoCapturer;
+import org.webrtc.VideoRenderer;
+import org.webrtc.VideoRenderer.Callbacks;
+import org.webrtc.VideoRenderer.I420Frame;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
-
-import android.content.Context;
 
 public class WebRtcSession {
 
@@ -32,27 +32,12 @@ public class WebRtcSession {
 	private static final int DEFAULT_STUN_PORT = 19302;
 	private static final String DEFAULT_STUN_PASSWORD = "";
 
-	private static boolean initiated = false;
-
 	private PeerConnectionFactory peerConnectionFactory;
 	private PeerConnection peerConnection;
-	private VideoCapturer capturer;
-	private VideoSource videoSource;
 	private MediaStream localStream;
 
-	static synchronized void initWebRtc(Context context) {
-		if (initiated)
-			return;
-		PeerConnectionFactory.initializeAndroidGlobals(context.getApplicationContext());
-		initiated = true;
-	}
-	
-	WebRtcSession(Context context) {
-		initWebRtc (context);
-	}
-
-	public synchronized void start() {
-		peerConnectionFactory = new PeerConnectionFactory();
+	public synchronized void start(VideoSource videoSource) {
+		peerConnectionFactory = PeerConnectionFactorySingleton.getInstance();
 
 		StringBuilder stunAddress = new StringBuilder();
 		stunAddress.append("stun:").append(DEFAULT_STUN_ADDRESS).append(":")
@@ -81,16 +66,30 @@ public class WebRtcSession {
 				"AudioTrack0", audioSource);
 		localStream.addTrack(audioTrack);
 
-		capturer = VideoCapturer
-				.create("Camera 0, Facing back, Orientation 90");
-
-		if (capturer != null) {
-			MediaConstraints vc = new MediaConstraints();
-			videoSource = peerConnectionFactory.createVideoSource(capturer, vc);
+		if (videoSource != null) {
 			VideoTrack videoTrack = peerConnectionFactory.createVideoTrack(
 					"VideoTrack0", videoSource);
+
+			videoTrack.addRenderer(new VideoRenderer(new Callbacks() {
+
+				@Override
+				public void setSize(int width, int height) {
+					log.debug("(" + WebRtcSession.this + ") setSize " + width
+							+ "x" + height);
+				}
+
+				@Override
+				public void renderFrame(I420Frame frame) {
+					log.debug("(" + WebRtcSession.this + ") renderFrame "
+							+ frame);
+				}
+			}));
+
 			localStream.addTrack(videoTrack);
+		} else {
+			log.warn("Cannot create VideoCapturer");
 		}
+
 		peerConnection.addStream(localStream, new MediaConstraints());
 	}
 
@@ -100,22 +99,6 @@ public class WebRtcSession {
 			peerConnection.dispose();
 			peerConnection = null;
 			localStream = null;
-		}
-
-		if (capturer != null) {
-			capturer.dispose();
-			capturer = null;
-		}
-
-		if (videoSource != null) {
-			videoSource.stop();
-			videoSource.dispose();
-			videoSource = null;
-		}
-
-		if (peerConnectionFactory != null) {
-			peerConnectionFactory.dispose();
-			peerConnectionFactory = null;
 		}
 	}
 
