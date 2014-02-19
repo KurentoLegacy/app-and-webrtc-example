@@ -20,6 +20,7 @@
 		<slf4j.version>1.7.6</slf4j.version>
 		<log4j.version>1.2.8</log4j.version>
 		<slf4j-android.version>1.6.1-RC1</slf4j-android.version>
+		<webrtc.version>r5563</webrtc.version>
 
 		<!-- Plugins Versions -->
 		<maven-compiler-plugin.version>1.6</maven-compiler-plugin.version>
@@ -78,6 +79,19 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-android</artifactId>
 			<version>${slf4j-android.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.kurento.kands</groupId>
+			<artifactId>libjingle_peerconnection</artifactId>
+			<version>${webrtc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.kurento.kands</groupId>
+			<artifactId>libjingle_peerconnection_so</artifactId>
+			<version>${webrtc.version}</version>
+			<classifier>armeabi</classifier>
+			<type>so</type>
 		</dependency>
 	</dependencies>
 
