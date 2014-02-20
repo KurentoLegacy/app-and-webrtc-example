@@ -17,6 +17,8 @@ import org.webrtc.PeerConnection.IceConnectionState;
 import org.webrtc.PeerConnection.IceGatheringState;
 import org.webrtc.PeerConnection.SignalingState;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.SdpObserver;
+import org.webrtc.SessionDescription;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.Callbacks;
 import org.webrtc.VideoRenderer.I420Frame;
@@ -24,6 +26,12 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 public class WebRtcSession {
+
+	protected interface Callback<T> {
+		void onSuccess(T result);
+
+		void onError(Exception e);
+	}
 
 	private static final Logger log = LoggerFactory
 			.getLogger(WebRtcSession.class.getSimpleName());
@@ -36,7 +44,18 @@ public class WebRtcSession {
 	private PeerConnection peerConnection;
 	private MediaStream localStream;
 
-	public synchronized void start(VideoSource videoSource) {
+	private PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver();
+
+	private synchronized String getLocalDescription() {
+		if (peerConnection == null) {
+			return null;
+		}
+
+		return peerConnection.getLocalDescription().description;
+	}
+
+	public synchronized void start(AudioSource audioSource,
+			VideoSource videoSource) {
 		peerConnectionFactory = PeerConnectionFactorySingleton.getInstance();
 
 		StringBuilder stunAddress = new StringBuilder();
@@ -55,13 +74,11 @@ public class WebRtcSession {
 				"true"));
 
 		peerConnection = peerConnectionFactory.createPeerConnection(iceServers,
-				constraints, new PeerConnectionObserver());
+				constraints, peerConnectionObserver);
 
 		localStream = peerConnectionFactory
 				.createLocalMediaStream("MediaStream0");
 
-		AudioSource audioSource = peerConnectionFactory
-				.createAudioSource(new MediaConstraints());
 		AudioTrack audioTrack = peerConnectionFactory.createAudioTrack(
 				"AudioTrack0", audioSource);
 		localStream.addTrack(audioTrack);
@@ -74,20 +91,18 @@ public class WebRtcSession {
 
 				@Override
 				public void setSize(int width, int height) {
-					log.debug("(" + WebRtcSession.this + ") setSize " + width
-							+ "x" + height);
+					log.debug("(" + WebRtcSession.this
+							+ ") localStream setSize " + width + "x" + height);
 				}
 
 				@Override
 				public void renderFrame(I420Frame frame) {
-					log.debug("(" + WebRtcSession.this + ") renderFrame "
-							+ frame);
+					log.debug("(" + WebRtcSession.this
+							+ ") localStream renderFrame " + frame);
 				}
 			}));
 
 			localStream.addTrack(videoTrack);
-		} else {
-			log.warn("Cannot create VideoCapturer");
 		}
 
 		peerConnection.addStream(localStream, new MediaConstraints());
@@ -102,7 +117,181 @@ public class WebRtcSession {
 		}
 	}
 
+	public synchronized void createSdpOffer(final Callback<String> callback) {
+		MediaConstraints constraints = new MediaConstraints();
+
+		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+				"OfferToReceiveAudio", "true"));
+		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
+				"OfferToReceiveVideo", "true"));
+
+		peerConnectionObserver.setSdpCallback(callback);
+		peerConnection.createOffer(new SdpObserver() {
+
+			@Override
+			public void onCreateFailure(String error) {
+				log.error("createOffer onCreateFailure: " + error);
+				callback.onError(new Exception(error));
+			}
+
+			@Override
+			public void onCreateSuccess(SessionDescription sdp) {
+				log.debug("createOffer onSuccess");
+				peerConnection.setLocalDescription(new SdpObserver() {
+					@Override
+					public void onCreateFailure(String error) {
+						// Nothing to do
+					}
+
+					@Override
+					public void onCreateSuccess(SessionDescription sdp) {
+						// Nothing to do
+					}
+
+					@Override
+					public void onSetFailure(String error) {
+						log.error("setLocalDescription onFailure: " + error);
+						callback.onError(new Exception(error));
+					}
+
+					@Override
+					public void onSetSuccess() {
+						log.debug("setLocalDescription onSuccess");
+					}
+				}, sdp);
+			}
+
+			@Override
+			public void onSetFailure(String error) {
+				// Nothing to do
+			}
+
+			@Override
+			public void onSetSuccess() {
+				// Nothing to do
+			}
+		}, constraints);
+	}
+
+	public synchronized void createSdpAnswer(String sdpOffer,
+			final Callback<String> callback) {
+		final SessionDescription sdp = new SessionDescription(
+				SessionDescription.Type.OFFER, sdpOffer);
+
+		// FIXME
+		peerConnectionObserver.setSdpCallback(callback);
+		peerConnection.setRemoteDescription(new SdpObserver() {
+			@Override
+			public void onCreateFailure(String error) {
+				// Nothing to do
+			}
+
+			@Override
+			public void onCreateSuccess(SessionDescription sdp) {
+				// Nothing to do
+			}
+
+			@Override
+			public void onSetFailure(String error) {
+				log.error("setRemoteDescription onFailure: " + error);
+				callback.onError(new Exception(error));
+			}
+
+			@Override
+			public void onSetSuccess() {
+				log.debug("setRemoteDescription onSuccess");
+				MediaConstraints constraints = new MediaConstraints();
+				peerConnection.createAnswer(new SdpObserver() {
+					@Override
+					public void onCreateFailure(String error) {
+						log.debug("createAnswer onFailure: " + error);
+						callback.onError(new Exception(error));
+					}
+
+					@Override
+					public void onCreateSuccess(SessionDescription sdp) {
+						log.debug("createAnswer onSuccess");
+						peerConnection.setLocalDescription(new SdpObserver() {
+							@Override
+							public void onCreateFailure(String error) {
+								// Nothing to do
+							}
+
+							@Override
+							public void onCreateSuccess(SessionDescription sdp) {
+								// Nothing to do
+							}
+
+							@Override
+							public void onSetFailure(String error) {
+								log.debug("setLocalDescription onFailure: "
+										+ error);
+								callback.onError(new Exception(error));
+							}
+
+							@Override
+							public void onSetSuccess() {
+								log.debug("setLocalDescription onSuccess");
+							}
+						}, sdp);
+					}
+
+					@Override
+					public void onSetFailure(String error) {
+						// Nothing to do
+					}
+
+					@Override
+					public void onSetSuccess() {
+						// Nothing to do
+					}
+				}, constraints);
+			}
+		}, sdp);
+	}
+
+	protected void processSdpAnswer(String sdpAnswer,
+			final Callback<Void> callback) {
+		final SessionDescription sdp = new SessionDescription(
+				SessionDescription.Type.ANSWER, sdpAnswer);
+
+		peerConnection.setRemoteDescription(new SdpObserver() {
+			@Override
+			public void onCreateFailure(String error) {
+				// Nothing to do
+			}
+
+			@Override
+			public void onCreateSuccess(SessionDescription sdp) {
+				// Nothing to do
+			}
+
+			@Override
+			public void onSetFailure(String error) {
+				log.error("setRemoteDescription onFailure: " + error);
+				callback.onError(new Exception(error));
+			}
+
+			@Override
+			public void onSetSuccess() {
+				log.debug("setRemoteDescription onSuccess");
+				callback.onSuccess(null);
+			}
+		}, sdp);
+	}
+
 	private class PeerConnectionObserver implements PeerConnection.Observer {
+
+		private Callback<String> sdpCalback;
+
+		public synchronized Callback<String> getSdpCallback() {
+			return sdpCalback;
+		}
+
+		public synchronized void setSdpCallback(Callback<String> sdpCalback) {
+			this.sdpCalback = sdpCalback;
+		}
+
 		@Override
 		public void onSignalingChange(SignalingState newState) {
 			log.debug("peerConnection onSignalingChange: " + newState);
@@ -121,6 +310,22 @@ public class WebRtcSession {
 		@Override
 		public void onIceGatheringChange(IceGatheringState newState) {
 			log.debug("peerConnection onIceGatheringChange: " + newState);
+			if (IceGatheringState.COMPLETE.equals(newState)) {
+				Callback<String> c = getSdpCallback();
+				if (c == null) {
+					log.error("There is not callback");
+					return;
+				}
+
+				String localDescription = getLocalDescription();
+				if (localDescription != null) {
+					c.onSuccess(localDescription);
+				} else {
+					String error = "Local SDP is null";
+					log.error(error);
+					c.onError(new Exception(error));
+				}
+			}
 		}
 
 		@Override
@@ -146,6 +351,25 @@ public class WebRtcSession {
 		@Override
 		public void onAddStream(MediaStream stream) {
 			log.debug("peerConnection onAddStream");
+
+			if (stream != null && stream.videoTracks.size() > 0) {
+				stream.videoTracks.get(0).addRenderer(
+						new VideoRenderer(new Callbacks() {
+
+							@Override
+							public void setSize(int width, int height) {
+								log.debug("(" + WebRtcSession.this
+										+ ") remoteStream setSize " + width
+										+ "x" + height);
+							}
+
+							@Override
+							public void renderFrame(I420Frame frame) {
+								log.debug("(" + WebRtcSession.this
+										+ ") remoteStream renderFrame " + frame);
+							}
+						}));
+			}
 		}
 	}
 
