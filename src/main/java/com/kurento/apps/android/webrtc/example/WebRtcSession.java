@@ -54,6 +54,10 @@ public class WebRtcSession {
 		return peerConnection.getLocalDescription().description;
 	}
 
+	public void start(VideoSource videoSource) {
+		start(null, videoSource);
+	}
+
 	public synchronized void start(AudioSource audioSource,
 			VideoSource videoSource) {
 		peerConnectionFactory = PeerConnectionFactorySingleton.getInstance();
@@ -79,9 +83,11 @@ public class WebRtcSession {
 		localStream = peerConnectionFactory
 				.createLocalMediaStream("MediaStream0");
 
-		AudioTrack audioTrack = peerConnectionFactory.createAudioTrack(
-				"AudioTrack0", audioSource);
-		localStream.addTrack(audioTrack);
+		if (audioSource != null) {
+			AudioTrack audioTrack = peerConnectionFactory.createAudioTrack(
+					"AudioTrack0", audioSource);
+			localStream.addTrack(audioTrack);
+		}
 
 		if (videoSource != null) {
 			VideoTrack videoTrack = peerConnectionFactory.createVideoTrack(
@@ -121,7 +127,7 @@ public class WebRtcSession {
 		MediaConstraints constraints = new MediaConstraints();
 
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-				"OfferToReceiveAudio", "true"));
+				"OfferToReceiveAudio", "false"));
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
 				"OfferToReceiveVideo", "true"));
 

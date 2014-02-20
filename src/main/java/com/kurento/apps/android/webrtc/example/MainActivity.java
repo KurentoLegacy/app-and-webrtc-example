@@ -2,7 +2,6 @@ package com.kurento.apps.android.webrtc.example;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.webrtc.AudioSource;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoCapturer;
@@ -52,16 +51,13 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 
 		PeerConnectionFactorySingleton.initWebRtc(this);
-
-		AudioSource audioSource = PeerConnectionFactorySingleton.getInstance()
-				.createAudioSource(new MediaConstraints());
 		createVideoSource();
 
 		sessionA = new WebRtcSession();
-		sessionA.start(audioSource, videoSource);
+		sessionA.start(videoSource);
 
 		sessionB = new WebRtcSession();
-		sessionB.start(audioSource, videoSource);
+		sessionB.start(videoSource);
 
 		sessionA.createSdpOffer(new WebRtcSession.Callback<String>() {
 
