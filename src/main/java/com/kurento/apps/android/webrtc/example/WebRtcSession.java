@@ -20,10 +20,14 @@ import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.VideoRenderer;
-import org.webrtc.VideoRenderer.Callbacks;
 import org.webrtc.VideoRenderer.I420Frame;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
+
+import android.app.Activity;
+import android.content.Context;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 public class WebRtcSession {
 
@@ -43,8 +47,31 @@ public class WebRtcSession {
 	private PeerConnectionFactory peerConnectionFactory;
 	private PeerConnection peerConnection;
 	private MediaStream localStream;
+	private MediaStream remoteStream;
 
 	private PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver();
+
+	public void setLocalDisplay(ViewGroup viewGroup) {
+		setDisplay(viewGroup, getLocalStream());
+	}
+
+	public void setRemoteDisplay(ViewGroup viewGroup) {
+		setDisplay(viewGroup, getRemoteStream());
+	}
+
+	private synchronized MediaStream getLocalStream() {
+		return localStream;
+	}
+
+	private synchronized MediaStream getRemoteStream() {
+		return remoteStream;
+	}
+
+	public synchronized void setRemoteStream(MediaStream remoteStream) {
+		if (peerConnection != null) {
+			this.remoteStream = remoteStream;
+		}
+	}
 
 	private synchronized String getLocalDescription() {
 		if (peerConnection == null) {
@@ -92,22 +119,6 @@ public class WebRtcSession {
 		if (videoSource != null) {
 			VideoTrack videoTrack = peerConnectionFactory.createVideoTrack(
 					"VideoTrack0", videoSource);
-
-			videoTrack.addRenderer(new VideoRenderer(new Callbacks() {
-
-				@Override
-				public void setSize(int width, int height) {
-					log.debug("(" + WebRtcSession.this
-							+ ") localStream setSize " + width + "x" + height);
-				}
-
-				@Override
-				public void renderFrame(I420Frame frame) {
-					log.debug("(" + WebRtcSession.this
-							+ ") localStream renderFrame " + frame);
-				}
-			}));
-
 			localStream.addTrack(videoTrack);
 		}
 
@@ -357,25 +368,98 @@ public class WebRtcSession {
 		@Override
 		public void onAddStream(MediaStream stream) {
 			log.debug("peerConnection onAddStream");
+			setRemoteStream(stream);
+		}
+	}
 
-			if (stream != null && stream.videoTracks.size() > 0) {
-				stream.videoTracks.get(0).addRenderer(
-						new VideoRenderer(new Callbacks() {
+	/* Video stream management */
+	// TODO: improve names and create an external class to export these
+	// utilities
 
-							@Override
-							public void setSize(int width, int height) {
-								log.debug("(" + WebRtcSession.this
-										+ ") remoteStream setSize " + width
-										+ "x" + height);
-							}
+	private static void setDisplay(ViewGroup viewGroup, MediaStream stream) {
+		if (stream == null || !(viewGroup.getContext() instanceof Activity))
+			return;
+		Activity activity = (Activity) viewGroup.getContext();
+		VideoStreamView sv = getVideoStreamViewFromActivity(activity);
 
-							@Override
-							public void renderFrame(I420Frame frame) {
-								log.debug("(" + WebRtcSession.this
-										+ ") remoteStream renderFrame " + frame);
-							}
-						}));
-			}
+		Preview preview = new Preview(viewGroup.getContext(), sv);
+
+		if (stream != null && stream.videoTracks.size() > 0) {
+			stream.videoTracks.get(0).addRenderer(new VideoRenderer(preview));
+		}
+
+		viewGroup.addView(preview, new ViewGroup.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT,
+				ViewGroup.LayoutParams.MATCH_PARENT));
+	}
+
+	private static final int STREAM_ID = 10000;
+
+	private static synchronized VideoStreamView getVideoStreamViewFromActivity(
+			Activity activity) {
+		VideoStreamView sv = null;
+		try {
+			sv = (VideoStreamView) activity.findViewById(STREAM_ID);
+		} catch (ClassCastException e) {
+			// Ignore
+		}
+
+		if (sv == null) {
+			log.info("Creating videostream view");
+			sv = new VideoStreamView(activity);
+			sv.setId(STREAM_ID);
+
+			FrameLayout content = (FrameLayout) activity
+					.findViewById(android.R.id.content);
+
+			content.addView(sv, 0, new ViewGroup.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.MATCH_PARENT));
+		} else {
+			log.info("Videostream view is already created");
+		}
+
+		return sv;
+	}
+
+	private static class Preview extends ViewGroup implements
+			VideoRenderer.Callbacks {
+
+		private final int streamId;
+		private final VideoStreamView sv;
+
+		Preview(Context c, VideoStreamView sv) {
+			super(c);
+
+			this.sv = sv;
+			streamId = sv.registerStream();
+		}
+
+		@Override
+		protected void onLayout(boolean changed, int l, int t, int r, int b) {
+			if (!changed)
+				return;
+
+			int position[] = new int[2];
+			getLocationInWindow(position);
+
+			sv.setStreamDimensions(streamId, getWidth(), getHeight(),
+					position[0], position[1]);
+		}
+
+		@Override
+		public void renderFrame(I420Frame frame) {
+			sv.queueFrame(streamId, frame);
+		}
+
+		@Override
+		public void setSize(final int width, final int height) {
+			sv.queueEvent(new Runnable() {
+				@Override
+				public void run() {
+					sv.setSize(streamId, width, height);
+				}
+			});
 		}
 	}
 
