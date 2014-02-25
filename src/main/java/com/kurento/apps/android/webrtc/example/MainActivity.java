@@ -9,6 +9,9 @@ import org.webrtc.VideoSource;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.LinearLayout;
 
 public class MainActivity extends Activity {
 
@@ -50,6 +53,13 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+				WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		getWindow().requestFeature(Window.FEATURE_ACTION_BAR);
+		getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+		setContentView(R.layout.main);
+
 		PeerConnectionFactorySingleton.initWebRtc(this);
 		createVideoSource();
 
@@ -74,7 +84,20 @@ public class MainActivity extends Activity {
 
 											@Override
 											public void onSuccess(Void result) {
-												log.error("processSdpAnswer onSuccess");
+												log.debug("processSdpAnswer onSuccess");
+												final LinearLayout localViewA = (LinearLayout) findViewById(R.id.video_capture_surface_container_A);
+												final LinearLayout remoteViewA = (LinearLayout) findViewById(R.id.video_receive_surface_container_A);
+												final LinearLayout localViewB = (LinearLayout) findViewById(R.id.video_capture_surface_container_B);
+												final LinearLayout remoteViewB = (LinearLayout) findViewById(R.id.video_receive_surface_container_B);
+
+												runOnUiThread(new Runnable() {
+													public void run() {
+														sessionA.setRemoteDisplay(remoteViewA);
+														sessionA.setLocalDisplay(localViewA);
+														sessionA.setRemoteDisplay(remoteViewB);
+														sessionA.setLocalDisplay(localViewB);
+													}
+												});
 											}
 
 											@Override
@@ -102,12 +125,12 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onDestroy() {
+		super.onDestroy();
+
 		sessionA.finish();
 		sessionB.finish();
 
 		disposeVideoSource();
-
-		super.onDestroy();
 	}
 
 }
