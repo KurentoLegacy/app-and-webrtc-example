@@ -108,8 +108,8 @@ public class MainActivity extends Activity {
 													public void run() {
 														sessionA.setRemoteDisplay(remoteViewA);
 														sessionA.setLocalDisplay(localViewA);
-														sessionA.setRemoteDisplay(remoteViewB);
-														sessionA.setLocalDisplay(localViewB);
+														sessionB.setRemoteDisplay(remoteViewB);
+														sessionB.setLocalDisplay(localViewB);
 													}
 												});
 											}
