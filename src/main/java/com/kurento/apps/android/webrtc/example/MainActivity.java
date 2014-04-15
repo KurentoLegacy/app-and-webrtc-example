@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.webrtc.AudioSource;
 import org.webrtc.MediaConstraints;
+import org.webrtc.MediaConstraints.KeyValuePair;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
@@ -79,8 +80,11 @@ public class MainActivity extends Activity {
 
 		PeerConnectionFactory peerConnectionFactory = PeerConnectionFactorySingleton
 				.getInstance();
-		AudioSource audioSource = peerConnectionFactory
-				.createAudioSource(new MediaConstraints());
+
+		MediaConstraints ac = new MediaConstraints();
+		ac.mandatory.add(new KeyValuePair("googEchoCancellation", "false"));
+		ac.optional.add(new KeyValuePair("googEchoCancellation", "false"));
+		AudioSource audioSource = peerConnectionFactory.createAudioSource(ac);
 
 		createVideoSource();
 
