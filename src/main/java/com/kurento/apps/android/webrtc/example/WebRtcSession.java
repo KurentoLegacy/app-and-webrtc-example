@@ -178,7 +178,7 @@ public class WebRtcSession {
 		MediaConstraints constraints = new MediaConstraints();
 
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
-				"OfferToReceiveAudio", "false"));
+				"OfferToReceiveAudio", "true"));
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
 				"OfferToReceiveVideo", "true"));
 
