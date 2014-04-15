@@ -83,16 +83,17 @@ public class MainActivity extends Activity {
 
 		MediaConstraints ac = new MediaConstraints();
 		ac.mandatory.add(new KeyValuePair("googEchoCancellation", "false"));
-		ac.optional.add(new KeyValuePair("googEchoCancellation", "false"));
-		AudioSource audioSource = peerConnectionFactory.createAudioSource(ac);
+		ac.mandatory.add(new KeyValuePair("googAutoGainControl", "false"));
 
 		createVideoSource();
 
 		sessionA = new WebRtcSession();
-		sessionA.start(audioSource, videoSource);
+		AudioSource audioSourceA = peerConnectionFactory.createAudioSource(ac);
+		sessionA.start(audioSourceA, videoSource);
 
 		sessionB = new WebRtcSession();
-		sessionB.start(audioSource, videoSource);
+		AudioSource audioSourceB = peerConnectionFactory.createAudioSource(ac);
+		sessionB.start(audioSourceB, videoSource);
 
 		sessionA.createSdpOffer(new WebRtcSession.Callback<String>() {
 
