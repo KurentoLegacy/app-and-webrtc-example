@@ -63,6 +63,12 @@ public class WebRtcSession {
 	private MediaStream localStream;
 	private MediaStream remoteStream;
 
+	private static final LooperThread webRtcLT = new LooperThread();
+
+	static {
+		webRtcLT.start();
+	}
+
 	private PeerConnectionObserver peerConnectionObserver = new PeerConnectionObserver();
 
 	public void setLocalDisplay(ViewGroup viewGroup) {
@@ -95,12 +101,7 @@ public class WebRtcSession {
 		return peerConnection.getLocalDescription().description;
 	}
 
-	public void start(VideoSource videoSource) {
-		start(null, videoSource);
-	}
-
-	public synchronized void start(AudioSource audioSource,
-			VideoSource videoSource) {
+	private void startSync(AudioSource audioSource, VideoSource videoSource) {
 		peerConnectionFactory = PeerConnectionFactorySingleton.getInstance();
 
 		StringBuilder stunAddress = new StringBuilder();
@@ -118,8 +119,10 @@ public class WebRtcSession {
 		constraints.optional.add(new KeyValuePair("DtlsSrtpKeyAgreement",
 				"true"));
 
-		peerConnection = peerConnectionFactory.createPeerConnection(iceServers,
-				constraints, peerConnectionObserver);
+		synchronized (this) {
+			peerConnection = peerConnectionFactory.createPeerConnection(
+					iceServers, constraints, peerConnectionObserver);
+		}
 
 		localStream = peerConnectionFactory
 				.createLocalMediaStream("MediaStream0");
@@ -139,7 +142,21 @@ public class WebRtcSession {
 		peerConnection.addStream(localStream, new MediaConstraints());
 	}
 
-	public synchronized void finish() {
+	public void start(VideoSource videoSource) {
+		start(null, videoSource);
+	}
+
+	public void start(final AudioSource audioSource,
+			final VideoSource videoSource) {
+		webRtcLT.post(new Runnable() {
+			@Override
+			public void run() {
+				startSync(audioSource, videoSource);
+			}
+		});
+	}
+
+	private synchronized void finishSync() {
 		if (peerConnection != null) {
 			peerConnection.close();
 			peerConnection.dispose();
@@ -148,7 +165,16 @@ public class WebRtcSession {
 		}
 	}
 
-	public synchronized void createSdpOffer(final Callback<String> callback) {
+	public void finish() {
+		webRtcLT.post(new Runnable() {
+			@Override
+			public void run() {
+				finishSync();
+			}
+		});
+	}
+
+	private void createSdpOfferSync(final Callback<String> callback) {
 		MediaConstraints constraints = new MediaConstraints();
 
 		constraints.mandatory.add(new MediaConstraints.KeyValuePair(
@@ -204,7 +230,16 @@ public class WebRtcSession {
 		}, constraints);
 	}
 
-	public synchronized void createSdpAnswer(String sdpOffer,
+	public void createSdpOffer(final Callback<String> callback) {
+		webRtcLT.post(new Runnable() {
+			@Override
+			public void run() {
+				createSdpOfferSync(callback);
+			}
+		});
+	}
+
+	private void createSdpAnswerSync(String sdpOffer,
 			final Callback<String> callback) {
 		final SessionDescription sdp = new SessionDescription(
 				SessionDescription.Type.OFFER, sdpOffer);
@@ -281,7 +316,17 @@ public class WebRtcSession {
 		}, sdp);
 	}
 
-	protected void processSdpAnswer(String sdpAnswer,
+	public void createSdpAnswer(final String sdpOffer,
+			final Callback<String> callback) {
+		webRtcLT.post(new Runnable() {
+			@Override
+			public void run() {
+				createSdpAnswerSync(sdpOffer, callback);
+			}
+		});
+	}
+
+	private void processSdpAnswerSync(String sdpAnswer,
 			final Callback<Void> callback) {
 		final SessionDescription sdp = new SessionDescription(
 				SessionDescription.Type.ANSWER, sdpAnswer);
@@ -309,6 +354,17 @@ public class WebRtcSession {
 				callback.onSuccess(null);
 			}
 		}, sdp);
+	}
+
+	protected void processSdpAnswer(final String sdpAnswer,
+			final Callback<Void> callback) {
+		webRtcLT.post(new Runnable() {
+			@Override
+			public void run() {
+				processSdpAnswerSync(sdpAnswer, callback);
+			}
+		});
+
 	}
 
 	private class PeerConnectionObserver implements PeerConnection.Observer {
@@ -409,7 +465,7 @@ public class WebRtcSession {
 
 	private static final int STREAM_ID = 10000;
 
-	private static synchronized VideoStreamView getVideoStreamViewFromActivity(
+	private static VideoStreamView getVideoStreamViewFromActivity(
 			Activity activity) {
 		VideoStreamView sv = null;
 		try {
