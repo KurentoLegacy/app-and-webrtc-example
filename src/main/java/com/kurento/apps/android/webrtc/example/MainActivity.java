@@ -16,12 +16,6 @@ package com.kurento.apps.android.webrtc.example;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.webrtc.AudioSource;
-import org.webrtc.MediaConstraints;
-import org.webrtc.MediaConstraints.KeyValuePair;
-import org.webrtc.PeerConnectionFactory;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoSource;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -34,36 +28,7 @@ public class MainActivity extends Activity {
 	private static final Logger log = LoggerFactory
 			.getLogger(MainActivity.class.getSimpleName());
 
-	private static VideoCapturer videoCapturer;
-	private static VideoSource videoSource;
 	private WebRtcSession sessionA, sessionB;
-
-	private static void createVideoSource() {
-		PeerConnectionFactory peerConnectionFactory = PeerConnectionFactorySingleton
-				.getInstance();
-
-		videoCapturer = VideoCapturer
-				.create("Camera 0, Facing back, Orientation 90");
-		log.debug("videoCapturer: " + videoCapturer);
-
-		MediaConstraints vc = new MediaConstraints();
-
-		videoSource = peerConnectionFactory
-				.createVideoSource(videoCapturer, vc);
-	}
-
-	private static void disposeVideoSource() {
-		if (videoCapturer != null) {
-			videoCapturer.dispose();
-			videoCapturer = null;
-		}
-
-		if (videoSource != null) {
-			videoSource.stop();
-			videoSource.dispose();
-			videoSource = null;
-		}
-	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -76,27 +41,13 @@ public class MainActivity extends Activity {
 		getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 		setContentView(R.layout.main);
 
-		PeerConnectionFactorySingleton.initWebRtc(this);
-
-		PeerConnectionFactory peerConnectionFactory = PeerConnectionFactorySingleton
-				.getInstance();
-
-		createVideoSource();
+		WebRtcSession.initWebRtc(this);
 
 		sessionA = new WebRtcSession();
-
-		MediaConstraints ac = new MediaConstraints();
-		ac.optional.add(new KeyValuePair("googEchoCancellation", "false"));
-		ac.optional.add(new KeyValuePair("googNoiseSuppression", "false"));
-		// ac.optional.add(new KeyValuePair("googAutoGainControl", "false"));
-		// ac.optional.add(new KeyValuePair("googHighpassFilter", "false"));
-
-		AudioSource audioSourceA = peerConnectionFactory.createAudioSource(ac);
-		sessionA.start(audioSourceA, videoSource);
+		sessionA.start();
 
 		sessionB = new WebRtcSession();
-		AudioSource audioSourceB = peerConnectionFactory.createAudioSource(ac);
-		sessionB.start(audioSourceB, videoSource);
+		sessionB.start();
 
 		sessionA.createSdpOffer(new WebRtcSession.Callback<String>() {
 
@@ -158,8 +109,6 @@ public class MainActivity extends Activity {
 
 		sessionA.finish();
 		sessionB.finish();
-
-		disposeVideoSource();
 	}
 
 }
