@@ -70,8 +70,8 @@ public class WebRtcSession {
 		webRtcLT.post(new Runnable() {
 			@Override
 			public void run() {
-				PeerConnectionFactory.initializeAndroidGlobals(context
-						.getApplicationContext());
+				PeerConnectionFactory.initializeAndroidGlobals(
+						context.getApplicationContext(), true, true);
 			}
 		});
 

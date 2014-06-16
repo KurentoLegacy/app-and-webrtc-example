@@ -20,7 +20,7 @@
 		<slf4j.version>1.7.6</slf4j.version>
 		<log4j.version>1.2.8</log4j.version>
 		<slf4j-android.version>1.6.1-RC1</slf4j-android.version>
-		<webrtc.version>r5906</webrtc.version>
+		<webrtc.version>r6441</webrtc.version>
 
 		<!-- Plugins Versions -->
 		<maven-compiler-plugin.version>1.6</maven-compiler-plugin.version>
