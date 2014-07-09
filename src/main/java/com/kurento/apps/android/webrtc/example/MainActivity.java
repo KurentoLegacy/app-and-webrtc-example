@@ -23,6 +23,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
+import com.kurento.android.sdk.mscontrol.webrtc.WebRtcSession;
+
 public class MainActivity extends Activity {
 
 	private static final Logger log = LoggerFactory
