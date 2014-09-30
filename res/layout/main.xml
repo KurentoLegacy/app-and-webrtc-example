@@ -34,6 +34,29 @@
             android:layout_margin="16dip"
             android:orientation="horizontal" >
         </LinearLayout>
+
+        <Button
+            android:id="@+id/audio_stop"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignLeft="@+id/video_capture_surface_container_A"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="13dp"
+            android:onClick="stopAudio"
+            android:text="(Un)Mute Audio" />
+
+        <Button
+            android:id="@+id/video_stop"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/audio_stop"
+            android:layout_alignBottom="@+id/audio_stop"
+            android:layout_marginLeft="23dp"
+            android:layout_toRightOf="@+id/audio_stop"
+            android:onClick="stopVideo"
+            android:text="(Un)Mute Video" />
     </RelativeLayout>
 
     <RelativeLayout

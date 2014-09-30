@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
@@ -78,6 +79,10 @@ public class MainActivity extends Activity {
 														sessionA.setLocalDisplay(localViewA);
 														sessionB.setRemoteDisplay(remoteViewB);
 														sessionB.setLocalDisplay(localViewB);
+
+														sessionB.getAudioTrack()
+																.setEnabled(
+																		false);
 													}
 												});
 											}
@@ -103,6 +108,20 @@ public class MainActivity extends Activity {
 				log.error("generateSdpOffer error", e);
 			}
 		});
+	}
+
+	private boolean enableAudio = false;
+
+	public void stopAudio(View view) {
+		sessionA.getAudioTrack().setEnabled(enableAudio);
+		enableAudio = !enableAudio;
+	}
+
+	private boolean enableVideo = false;
+
+	public void stopVideo(View view) {
+		sessionA.getVideoTrack().setEnabled(enableVideo);
+		enableVideo = !enableVideo;
 	}
 
 	@Override
